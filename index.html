@@ -3,95 +3,115 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>科目三学员管理</title>
+  <title>驾校学员管理系统</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { padding: 20px; }
+    @media (max-width: 576px) {
+      table { font-size: 14px; }
+      .btn-sm { font-size: 12px; padding: 4px 8px; }
+      .form-control { font-size: 14px; }
+      .modal-dialog { max-width: 95%; }
+    }
+    th { cursor: pointer; }
+    .sort-indicator { margin-left: 5px; }
+    #pagination { display: flex; justify-content: center; gap: 10px; align-items: center; }
+  </style>
 </head>
 <body>
   <div class="container">
-    <h1 class="my-4">科目三学员管理</h1>
-    <div class="mb-3">
-      <input type="text" id="searchIdCard" class="form-control d-inline-block w-25" placeholder="输入姓名或身份证号码搜索">
-      <button class="btn btn-primary ms-2" onclick="searchStudents()">搜索</button>
-      <button class="btn btn-success ms-2" onclick="openAddModal()">添加学员</button>
-      <button class="btn btn-info ms-2" onclick="exportData()">导出数据</button>
-      <input type="file" id="importFile" class="form-control d-inline-block w-25 ms-2" accept=".csv" style="display: none;">
-      <button class="btn btn-warning ms-2" onclick="document.getElementById('importFile').click()">导入数据</button>
+    <h1 class="text-center mb-4">驾校学员管理系统</h1>
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <div class="input-group">
+          <input type="text" id="searchIdCard" class="form-control" placeholder="搜索姓名或身份证号码">
+          <button class="btn btn-primary" onclick="searchStudents()">搜索</button>
+        </div>
+      </div>
+      <div class="col-md-6 text-md-end mt-2 mt-md-0">
+        <button class="btn btn-success me-2" onclick="openAddModal()">添加学员</button>
+        <button class="btn btn-info me-2" onclick="exportData()">导出数据</button>
+        <label class="btn btn-secondary">
+          导入数据 <input type="file" id="importFile" accept=".csv" hidden>
+        </label>
+      </div>
     </div>
-    <table class="table table-bordered">
+    <table class="table table-striped">
       <thead>
         <tr>
-          <th onclick="sortStudents('name')" style="cursor: pointer;">姓名 <span id="sort-name"></span></th>
-          <th onclick="sortStudents('idCard')" style="cursor: pointer;">身份证号码 <span id="sort-idCard"></span></th>
-          <th onclick="sortStudents('subject2Pass')" style="cursor: pointer;">科目二状态 <span id="sort-subject2Pass"></span></th>
-          <th onclick="sortStudents('subject3Status')" style="cursor: pointer;">科目三状态 <span id="sort-subject3Status"></span></th>
-          <th onclick="sortStudents('vehicleType')" style="cursor: pointer;">车型 <span id="sort-vehicleType"></span></th>
-          <th onclick="sortStudents('remarks')" style="cursor: pointer;">备注 <span id="sort-remarks"></span></th>
+          <th onclick="sortStudents('name')">姓名 <span id="sort-name" class="sort-indicator"></span></th>
+          <th onclick="sortStudents('idCard')">身份证号码 <span id="sort-idCard" class="sort-indicator"></span></th>
+          <th onclick="sortStudents('subject2Pass')">科目二状态 <span id="sort-subject2Pass" class="sort-indicator"></span></th>
+          <th onclick="sortStudents('subject3Status')">科目三状态 <span id="sort-subject3Status" class="sort-indicator"></span></th>
+          <th onclick="sortStudents('vehicleType')">车型 <span id="sort-vehicleType" class="sort-indicator"></span></th>
+          <th onclick="sortStudents('remarks')">备注 <span id="sort-remarks" class="sort-indicator"></span></th>
           <th>操作</th>
         </tr>
       </thead>
       <tbody id="studentTable"></tbody>
     </table>
+    <div id="pagination" class="mt-3 text-center"></div>
+  </div>
 
-    <!-- 添加/编辑学员模态框 -->
-    <div class="modal fade" id="studentModal" tabindex="-1">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="modalTitle">添加学员</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <form id="studentForm">
-              <div class="mb-3">
-                <label class="form-label">身份证号码</label>
-                <input type="text" id="idCard" class="form-control" placeholder="可留空，默认为待录入">
-              </div>
-              <div class="mb-3">
-                <label class="form-label">姓名</label>
-                <input type="text" id="name" class="form-control" required>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">科目二是否合格</label>
-                <input type="checkbox" id="subject2Pass">
-              </div>
-              <div class="mb-3">
-                <label class="form-label">科目三状态</label>
-                <select id="subject3Status" class="form-select">
-                  <option value="练习中">练习中</option>
-                  <option value="需补考">需补考</option>
-                  <option value="已合格">已合格</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">车型</label>
-                <select id="vehicleType" class="form-select">
-                  <option value="C1">C1</option>
-                  <option value="C2">C2</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">备注（如可用练车时间）</label>
-                <textarea id="remarks" class="form-control" rows="3" placeholder="如：每周一、三下午"></textarea>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">静态学时（分钟）</label>
-                <input type="number" id="staticHours" class="form-control" min="0" placeholder="请输入分钟数">
-              </div>
-              <div class="mb-3">
-                <label class="form-label">动态学时（分钟）</label>
-                <input type="number" id="dynamicHours" class="form-control" min="0" placeholder="请输入分钟数">
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-            <button type="button" class="btn btn-primary" onclick="saveStudent()">保存</button>
-          </div>
+  <!-- 添加/编辑学员模态框 -->
+  <div class="modal fade" id="studentModal" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalTitle">添加学员</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="studentForm">
+            <div class="mb-3">
+              <label for="name" class="form-label">姓名 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="name" required>
+            </div>
+            <div class="mb-3">
+              <label for="idCard" class="form-label">身份证号码</label>
+              <input type="text" class="form-control" id="idCard" placeholder="留空默认为待录入">
+            </div>
+            <div class="mb-3 form-check">
+              <input type="checkbox" class="form-check-input" id="subject2Pass">
+              <label class="form-check-label" for="subject2Pass">科目二合格</label>
+            </div>
+            <div class="mb-3">
+              <label for="subject3Status" class="form-label">科目三状态</label>
+              <select class="form-select" id="subject3Status">
+                <option value="练习中">练习中</option>
+                <option value="需补考">需补考</option>
+                <option value="已合格">已合格</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="vehicleType" class="form-label">车型</label>
+              <select class="form-select" id="vehicleType">
+                <option value="C1">C1</option>
+                <option value="C2">C2</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="remarks" class="form-label">备注</label>
+              <textarea class="form-control" id="remarks" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="staticHours" class="form-label">静态学时</label>
+              <input type="number" class="form-control" id="staticHours" min="0">
+            </div>
+            <div class="mb-3">
+              <label for="dynamicHours" class="form-label">动态学时</label>
+              <input type="number" class="form-control" id="dynamicHours" min="0">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+          <button type="button" class="btn btn-primary" onclick="saveStudent()">保存</button>
         </div>
       </div>
     </div>
   </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="scripts.js"></script>
 </body>

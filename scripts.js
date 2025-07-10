@@ -1,4 +1,3 @@
-// 数据存储
 let students = [];
 let trainingRecords = [];
 let currentStudentId = null;
@@ -6,25 +5,25 @@ let editStudentIndex = null;
 let editTrainingIndex = null;
 let sortField = null;
 let sortOrder = 'asc';
+let currentStudentPage = 1;
+let currentTrainingPage = 1;
+const studentsPerPage = 5;
+const trainingPerPage = 5;
 
-// Worker API 基础 URL
-const API_URL = 'https://wdkm3.20121020.xyz';
+const API_URL = 'https://lingering-voice-5ba3.happyend0106.workers.dev';
 
-// 身份证号码校验
 function validateIdCard(idCard) {
   if (!idCard || idCard === '待录入') return true;
   const regex = /^[1-9]\d{5}(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}(\d|X)$/;
   return regex.test(idCard);
 }
 
-// 隐藏身份证号码
 function maskIdCard(idCard) {
   if (!idCard || idCard === '待录入') return '待录入';
   if (idCard.length !== 18) return idCard;
   return `${idCard.slice(0, 6)}******${idCard.slice(-4)}`;
 }
 
-// 生成时间选项
 function generateTimeOptions() {
   const times = [];
   for (let hour = 0; hour < 24; hour++) {
@@ -34,7 +33,6 @@ function generateTimeOptions() {
   return times;
 }
 
-// 填充时间下拉框
 function populateTimeSelects() {
   const startSelect = document.getElementById('startTime');
   const endSelect = document.getElementById('endTime');
@@ -52,7 +50,6 @@ function populateTimeSelects() {
   });
 }
 
-// 计算时长
 function calculateDuration(startTime, endTime) {
   const start = new Date(`1970-01-01 ${startTime}`);
   const end = new Date(`1970-01-01 ${endTime}`);
@@ -61,9 +58,10 @@ function calculateDuration(startTime, endTime) {
   return duration;
 }
 
-// 获取数据
-async function fetchData(endpoint) {
-  const response = await fetch(`${API_URL}/${endpoint}`, {
+async function fetchData(endpoint, params = {}) {
+  const url = new URL(`${API_URL}/${endpoint}`);
+  Object.entries(params).forEach(([key, value]) => url.searchParams.append(key, value));
+  const response = await fetch(url, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -71,7 +69,6 @@ async function fetchData(endpoint) {
   return response.json();
 }
 
-// 保存数据
 async function saveData(endpoint, method, body) {
   const response = await fetch(`${API_URL}/${endpoint}`, {
     method,
@@ -82,7 +79,6 @@ async function saveData(endpoint, method, body) {
   return response.json();
 }
 
-// 排序学员列表
 function sortStudents(field) {
   console.log(`排序字段：${field}`);
   if (sortField === field) {
@@ -108,7 +104,6 @@ function sortStudents(field) {
   updateSortIndicators();
 }
 
-// 更新排序指示箭头
 function updateSortIndicators() {
   const fields = ['name', 'idCard', 'subject2Pass', 'subject3Status', 'vehicleType', 'remarks'];
   fields.forEach(field => {
@@ -119,35 +114,41 @@ function updateSortIndicators() {
   });
 }
 
-// 渲染学员列表
 async function renderStudents(filterQuery = '') {
   const tbody = document.getElementById('studentTable');
   if (!tbody) return;
   try {
-    students = await fetchData('students');
+    const params = { page: currentStudentPage, limit: studentsPerPage };
+    const { data, total, page, limit } = await fetchData('students', params);
+    students = data;
     tbody.innerHTML = '';
-    students
-      .filter(s => !filterQuery || 
-        (s.idCard && s.idCard !== '待录入' && s.idCard.toLowerCase().includes(filterQuery.toLowerCase())) ||
-        s.name.toLowerCase().includes(filterQuery.toLowerCase())
-      )
-      .forEach((student, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${student.name}</td>
-          <td>${maskIdCard(student.idCard)}</td>
-          <td>${student.subject2Pass ? '合格' : '未合格'}</td>
-          <td>${student.subject3Status}</td>
-          <td>${student.vehicleType}</td>
-          <td>${student.remarks || ''}</td>
-          <td>
-            <button class="btn btn-info btn-sm" onclick="viewTraining(${index})">查看学时</button>
-            <button class="btn btn-warning btn-sm" onclick="openEditStudentModal(${index})">编辑</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteStudent(${index})">删除</button>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
+    data.forEach((student, index) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${student.name}</td>
+        <td>${maskIdCard(student.idCard)}</td>
+        <td>${student.subject2Pass ? '合格' : '未合格'}</td>
+        <td>${student.subject3Status}</td>
+        <td>${student.vehicleType}</td>
+        <td>${student.remarks || ''}</td>
+        <td>
+          <button class="btn btn-info btn-sm" onclick="viewTraining(${index})">查看学时</button>
+          <button class="btn btn-warning btn-sm" onclick="openEditStudentModal(${index})">编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteStudent(${index})">删除</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    const pagination = document.getElementById('pagination');
+    if (pagination) {
+      const totalPages = Math.ceil(total / limit);
+      pagination.innerHTML = `
+        <button class="btn btn-secondary btn-sm" onclick="changePage('students', ${page - 1})" ${page === 1 ? 'disabled' : ''}>上一页</button>
+        <span>第 ${page} 页 / 共 ${totalPages} 页 (总 ${total} 条)</span>
+        <button class="btn btn-secondary btn-sm" onclick="changePage('students', ${page + 1})" ${page === totalPages ? 'disabled' : ''}>下一页</button>
+      `;
+    }
     updateSortIndicators();
   } catch (error) {
     console.error('渲染学员列表失败:', error);
@@ -155,14 +156,24 @@ async function renderStudents(filterQuery = '') {
   }
 }
 
-// 搜索学员
+function changePage(endpoint, page) {
+  if (page < 1) return;
+  if (endpoint === 'students') {
+    currentStudentPage = page;
+    renderStudents(document.getElementById('searchIdCard').value);
+  } else if (endpoint === 'trainingRecords') {
+    currentTrainingPage = page;
+    renderTrainingRecords();
+  }
+}
+
 function searchStudents() {
   console.log('搜索按钮点击');
   const searchQuery = document.getElementById('searchIdCard').value;
+  currentStudentPage = 1; // 重置到第一页
   renderStudents(searchQuery);
 }
 
-// 打开添加学员模态框
 function openAddModal() {
   console.log('添加学员按钮点击');
   editStudentIndex = null;
@@ -179,7 +190,6 @@ function openAddModal() {
   new bootstrap.Modal(document.getElementById('studentModal')).show();
 }
 
-// 打开编辑学员模态框
 function openEditStudentModal(index) {
   console.log('编辑按钮点击，索引：', index);
   editStudentIndex = index;
@@ -196,7 +206,6 @@ function openEditStudentModal(index) {
   new bootstrap.Modal(document.getElementById('studentModal')).show();
 }
 
-// 保存学员
 async function saveStudent() {
   console.log('保存按钮点击');
   let idCard = document.getElementById('idCard').value.trim();
@@ -237,6 +246,7 @@ async function saveStudent() {
       }
       await saveData('students', 'PUT', { index: editStudentIndex, student });
     }
+    currentStudentPage = 1; // 重置到第一页
     await renderStudents();
     bootstrap.Modal.getInstance(document.getElementById('studentModal')).hide();
   } catch (error) {
@@ -245,12 +255,12 @@ async function saveStudent() {
   }
 }
 
-// 删除学员
 async function deleteStudent(index) {
   console.log('删除按钮点击，索引：', index);
   if (confirm('确定删除该学员？')) {
     try {
       await saveData('students', 'DELETE', { index });
+      currentStudentPage = 1; // 重置到第一页
       await renderStudents();
     } catch (error) {
       console.error('删除学员失败:', error);
@@ -259,16 +269,14 @@ async function deleteStudent(index) {
   }
 }
 
-// 导出数据
 async function exportData() {
   console.log('导出数据按钮点击');
   try {
-    const students = await fetchData('students');
-    const trainingRecords = await fetchData('trainingRecords');
+    const studentsData = await fetchData('students', { page: 1, limit: 1000 });
+    const trainingRecordsData = await fetchData('trainingRecords', { page: 1, limit: 1000 });
 
-    // 导出 students.csv
     const studentHeaders = ['姓名', '身份证号码', '科目二状态', '科目三状态', '车型', '备注', '静态学时', '动态学时'];
-    const studentRows = students.map(s => [
+    const studentRows = studentsData.data.map(s => [
       `"${s.name}"`,
       `"${s.idCard}"`,
       `"${s.subject2Pass ? '合格' : '未合格'}"`,
@@ -281,9 +289,8 @@ async function exportData() {
     const studentCsv = '\ufeff' + [studentHeaders, ...studentRows].map(row => row.join(',')).join('\n');
     downloadCsv(studentCsv, 'students.csv');
 
-    // 导出 trainingRecords.csv
     const trainingHeaders = ['身份证号码', '练车日期', '开始时间', '结束时间', '练习时长', '需加强项目', '备注'];
-    const trainingRows = trainingRecords.map(r => [
+    const trainingRows = trainingRecordsData.data.map(r => [
       `"${r.idCard}"`,
       `"${r.trainingDate}"`,
       `"${r.startTime}"`,
@@ -300,7 +307,6 @@ async function exportData() {
   }
 }
 
-// 下载 CSV 文件
 function downloadCsv(csvContent, fileName) {
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
@@ -310,13 +316,11 @@ function downloadCsv(csvContent, fileName) {
   URL.revokeObjectURL(link.href);
 }
 
-// 验证时间格式
 function validateTimeFormat(time) {
   const times = generateTimeOptions();
   return times.includes(time);
 }
 
-// 导入数据
 document.getElementById('importFile')?.addEventListener('change', async function (event) {
   console.log('导入文件选择');
   const file = event.target.files[0];
@@ -353,6 +357,7 @@ document.getElementById('importFile')?.addEventListener('change', async function
             }
           }
         }
+        currentStudentPage = 1;
         await renderStudents();
       } else if (headers.join(',') === ['身份证号码', '练车日期', '开始时间', '结束时间', '练习时长', '需加强项目', '备注'].join(',')) {
         const validWeakItems = ['超车', '直线行驶', '会车', '靠边停车', '换挡'];
@@ -381,6 +386,7 @@ document.getElementById('importFile')?.addEventListener('change', async function
             }
           }
         }
+        currentTrainingPage = 1;
         await renderTrainingRecords();
       } else {
         alert('无效的CSV文件格式！');
@@ -393,14 +399,12 @@ document.getElementById('importFile')?.addEventListener('change', async function
   reader.readAsText(file, 'UTF-8');
 });
 
-// 查看学时记录
 function viewTraining(index) {
   console.log('查看学时按钮点击，索引：', index);
   currentStudentId = students[index].idCard;
   window.location.href = `training.html?idCard=${currentStudentId}`;
 }
 
-// 渲染学时记录
 async function renderTrainingRecords() {
   const tbody = document.getElementById('trainingTable');
   if (!tbody) return;
@@ -413,17 +417,16 @@ async function renderTrainingRecords() {
     return;
   }
   try {
-    students = await fetchData('students');
-    trainingRecords = await fetchData('trainingRecords');
+    students = (await fetchData('students', { page: 1, limit: 1000 })).data;
+    const { data: records, total, page, limit } = await fetchData('trainingRecords', { idCard, page: currentTrainingPage, limit: trainingPerPage });
+    trainingRecords = records;
     const student = students.find(s => s.idCard === idCard);
     if (student) {
       document.getElementById('studentName').textContent = student.name || '未知';
       document.getElementById('studentIdCard').textContent = student.idCard || '待录入';
       document.getElementById('staticHours').textContent = student.staticHours || 0;
       document.getElementById('dynamicHours').textContent = student.dynamicHours || 0;
-      const totalTrainingHours = trainingRecords
-        .filter(r => r.idCard === idCard)
-        .reduce((sum, r) => sum + r.duration, 0);
+      const totalTrainingHours = records.reduce((sum, r) => sum + r.duration, 0);
       document.getElementById('totalTrainingHours').textContent = totalTrainingHours;
     } else {
       alert('学员不存在！');
@@ -432,31 +435,38 @@ async function renderTrainingRecords() {
     }
 
     tbody.innerHTML = '';
-    trainingRecords
-      .filter(r => r.idCard === idCard)
-      .forEach((record, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${record.trainingDate}</td>
-          <td>${record.startTime}</td>
-          <td>${record.endTime}</td>
-          <td>${record.duration}</td>
-          <td>${record.weakItems.join(', ')}</td>
-          <td>${record.remarks}</td>
-          <td>
-            <button class="btn btn-warning btn-sm" onclick="openEditTrainingModal(${index})">编辑</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteTraining(${index})">删除</button>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
+    records.forEach((record, index) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${record.trainingDate}</td>
+        <td>${record.startTime}</td>
+        <td>${record.endTime}</td>
+        <td>${record.duration}</td>
+        <td>${record.weakItems.join(', ')}</td>
+        <td>${record.remarks}</td>
+        <td>
+          <button class="btn btn-warning btn-sm" onclick="openEditTrainingModal(${index})">编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteTraining(${index})">删除</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    const pagination = document.getElementById('trainingPagination');
+    if (pagination) {
+      const totalPages = Math.ceil(total / limit);
+      pagination.innerHTML = `
+        <button class="btn btn-secondary btn-sm" onclick="changePage('trainingRecords', ${page - 1})" ${page === 1 ? 'disabled' : ''}>上一页</button>
+        <span>第 ${page} 页 / 共 ${totalPages} 页 (总 ${total} 条)</span>
+        <button class="btn btn-secondary btn-sm" onclick="changePage('trainingRecords', ${page + 1})" ${page === totalPages ? 'disabled' : ''}>下一页</button>
+      `;
+    }
   } catch (error) {
     console.error('渲染学时记录失败:', error);
     alert('无法加载学时记录，请检查网络！');
   }
 }
 
-// 打开添加学时记录模态框
 function openAddTrainingModal() {
   console.log('添加学时记录按钮点击');
   editTrainingIndex = null;
@@ -475,7 +485,6 @@ function openAddTrainingModal() {
   new bootstrap.Modal(document.getElementById('trainingModal')).show();
 }
 
-// 打开编辑学时记录模态框
 function openEditTrainingModal(index) {
   console.log('编辑学时记录按钮点击，索引：', index);
   editTrainingIndex = index;
@@ -494,7 +503,6 @@ function openEditTrainingModal(index) {
   new bootstrap.Modal(document.getElementById('trainingModal')).show();
 }
 
-// 保存学时记录
 async function saveTraining() {
   console.log('保存学时记录按钮点击');
   const urlParams = new URLSearchParams(window.location.search);
@@ -538,6 +546,7 @@ async function saveTraining() {
     } else {
       await saveData('trainingRecords', 'PUT', { index: editTrainingIndex, record });
     }
+    currentTrainingPage = 1; // 重置到第一页
     await renderTrainingRecords();
     bootstrap.Modal.getInstance(document.getElementById('trainingModal')).hide();
   } catch (error) {
@@ -546,12 +555,12 @@ async function saveTraining() {
   }
 }
 
-// 删除学时记录
 async function deleteTraining(index) {
   console.log('删除学时记录按钮点击，索引：', index);
   if (confirm('确定删除该学时记录？')) {
     try {
       await saveData('trainingRecords', 'DELETE', { index });
+      currentTrainingPage = 1; // 重置到第一页
       await renderTrainingRecords();
     } catch (error) {
       console.error('删除学时记录失败:', error);
@@ -560,7 +569,6 @@ async function deleteTraining(index) {
   }
 }
 
-// 页面加载时初始化
 window.onload = async function () {
   console.log('页面加载完成，初始化渲染');
   try {

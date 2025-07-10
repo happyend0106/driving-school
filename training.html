@@ -3,26 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>学时记录</title>
+  <title>学员学时记录</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { padding: 20px; }
+    @media (max-width: 576px) {
+      table { font-size: 14px; }
+      .btn-sm { font-size: 12px; padding: 4px 8px; }
+      .form-control, .form-select { font-size: 14px; }
+      .modal-dialog { max-width: 95%; }
+    }
+    #trainingPagination { display: flex; justify-content: center; gap: 10px; align-items: center; }
+  </style>
 </head>
 <body>
   <div class="container">
-    <h1 class="my-4">学时记录</h1>
-    <div class="card mb-3">
-      <div class="card-body">
-        <h5 class="card-title">学员信息</h5>
-        <p class="card-text"><strong>姓名：</strong><span id="studentName"></span></p>
-        <p class="card-text"><strong>身份证号码：</strong><span id="studentIdCard"></span></p>
-        <p class="card-text"><strong>静态学时（分钟）：</strong><span id="staticHours"></span></p>
-        <p class="card-text"><strong>动态学时（分钟）：</strong><span id="dynamicHours"></span></p>
-        <p class="card-text"><strong>总练车时长（分钟）：</strong><span id="totalTrainingHours"></span></p>
+    <h1 class="text-center mb-4">学员学时记录</h1>
+    <div class="mb-3">
+      <div class="row">
+        <div class="col-md-6">
+          <p><strong>学员姓名：</strong><span id="studentName">未知</span></p>
+          <p><strong>身份证号码：</strong><span id="studentIdCard">未知</span></p>
+        </div>
+        <div class="col-md-6 text-md-end">
+          <p><strong>静态学时：</strong><span id="staticHours">0</span> 小时</p>
+          <p><strong>动态学时：</strong><span id="dynamicHours">0</span> 小时</p>
+          <p><strong>总练习时长：</strong><span id="totalTrainingHours">0</span> 分钟</p>
+        </div>
       </div>
     </div>
-    <a href="index.html" class="btn btn-secondary mb-3">返回学员管理</a>
-    <button class="btn btn-success mb-3" onclick="openAddTrainingModal()">添加学时记录</button>
-    <table class="table table-bordered">
+    <div class="mb-3">
+      <button class="btn btn-success" onclick="openAddTrainingModal()">添加学时记录</button>
+      <a href="index.html" class="btn btn-secondary">返回学员列表</a>
+    </div>
+    <table class="table table-striped">
       <thead>
         <tr>
           <th>练车日期</th>
@@ -36,59 +50,68 @@
       </thead>
       <tbody id="trainingTable"></tbody>
     </table>
+    <div id="trainingPagination" class="mt-3 text-center"></div>
+  </div>
 
-    <!-- 添加/编辑学时记录模态框 -->
-    <div class="modal fade" id="trainingModal" tabindex="-1">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="trainingModalTitle">添加学时记录</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <form id="trainingForm">
-              <div class="mb-3">
-                <label class="form-label">练车日期</label>
-                <input type="date" id="trainingDate" class="form-control" required>
+  <!-- 添加/编辑学时记录模态框 -->
+  <div class="modal fade" id="trainingModal" tabindex="-1" aria-labelledby="trainingModalTitle" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="trainingModalTitle">添加学时记录</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="trainingForm">
+            <div class="mb-3">
+              <label for="trainingDate" class="form-label">练车日期 <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" id="trainingDate" required>
+            </div>
+            <div class="mb-3">
+              <label for="startTime" class="form-label">开始时间 <span class="text-danger">*</span></label>
+              <select class="form-select" id="startTime" required></select>
+            </div>
+            <div class="mb-3">
+              <label for="endTime" class="form-label">结束时间 <span class="text-danger">*</span></label>
+              <select class="form-select" id="endTime" required></select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">需加强项目</label>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="weakItem1" value="超车">
+                <label class="form-check-label" for="weakItem1">超车</label>
               </div>
-              <div class="mb-3">
-                <label class="form-label">开始时间</label>
-                <select id="startTime" class="form-select" required>
-                  <option value="" disabled selected>选择开始时间</option>
-                  <!-- 动态生成选项 -->
-                </select>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="weakItem2" value="直线行驶">
+                <label class="form-check-label" for="weakItem2">直线行驶</label>
               </div>
-              <div class="mb-3">
-                <label class="form-label">结束时间</label>
-                <select id="endTime" class="form-select" required>
-                  <option value="" disabled selected>选择结束时间</option>
-                  <!-- 动态生成选项 -->
-                </select>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="weakItem3" value="会车">
+                <label class="form-check-label" for="weakItem3">会车</label>
               </div>
-              <div class="mb-3">
-                <label class="form-label">需加强项目</label>
-                <div>
-                  <input type="checkbox" id="weakItem1" value="超车"> 超车
-                  <input type="checkbox" id="weakItem2" value="直线行驶"> 直线行驶
-                  <input type="checkbox" id="weakItem3" value="会车"> 会车
-                  <input type="checkbox" id="weakItem4" value="靠边停车"> 靠边停车
-                  <input type="checkbox" id="weakItem5" value="换挡"> 换挡
-                </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="weakItem4" value="靠边停车">
+                <label class="form-check-label" for="weakItem4">靠边停车</label>
               </div>
-              <div class="mb-3">
-                <label class="form-label">备注</label>
-                <textarea id="remarks" class="form-control" rows="3"></textarea>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="weakItem5" value="换挡">
+                <label class="form-check-label" for="weakItem5">换挡</label>
               </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-            <button type="button" class="btn btn-primary" onclick="saveTraining()">保存</button>
-          </div>
+            </div>
+            <div class="mb-3">
+              <label for="remarks" class="form-label">备注</label>
+              <textarea class="form-control" id="remarks" rows="3"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+          <button type="button" class="btn btn-primary" onclick="saveTraining()">保存</button>
         </div>
       </div>
     </div>
   </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="scripts.js"></script>
 </body>
