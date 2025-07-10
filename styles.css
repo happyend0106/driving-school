@@ -228,6 +228,7 @@ textarea {
 @media (max-width: 576px) {
   .table {
     font-size: 12px;
+	display: block; overflow-x: auto;
   }
 
   .btn-sm {
