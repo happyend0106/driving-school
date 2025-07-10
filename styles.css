@@ -1,0 +1,251 @@
+/* 全局样式 */
+body {
+  font-family: 'Segoe UI', 'Arial', sans-serif;
+  background-color: #f4f7fa;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* 容器样式 */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+}
+
+/* 标题样式 */
+h1 {
+  color: #2c3e50;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+/* 学员信息卡片 */
+.card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background-color: #f8f9fa;
+}
+
+.card-title {
+  color: #2c3e50;
+  font-weight: 500;
+  margin-bottom: 15px;
+}
+
+.card-text {
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.card-text strong {
+  color: #3498db;
+}
+
+/* 表格样式 */
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table th,
+.table td {
+  vertical-align: middle;
+  text-align: center;
+  padding: 12px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.table th {
+  background-color: #3498db;
+  color: #fff;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  cursor: pointer;
+}
+
+.table th:hover {
+  background-color: #2980b9;
+}
+
+.table th span {
+  margin-left: 5px;
+  font-size: 12px;
+}
+
+/* 按钮样式 */
+.btn {
+  border-radius: 5px;
+  padding: 8px 16px;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background-color: #3498db;
+  border-color: #3498db;
+}
+
+.btn-primary:hover {
+  background-color: #2980b9;
+  border-color: #2980b9;
+}
+
+.btn-success {
+  background-color: #27ae60;
+  border-color: #27ae60;
+}
+
+.btn-success:hover {
+  background-color: #219653;
+  border-color: #219653;
+}
+
+.btn-info {
+  background-color: #17a2b8;
+  border-color: #17a2b8;
+}
+
+.btn-info:hover {
+  background-color: #138496;
+  border-color: #138496;
+}
+
+.btn-danger {
+  background-color: #e74c3c;
+  border-color: #e74c3c;
+}
+
+.btn-danger:hover {
+  background-color: #c0392b;
+  border-color: #c0392b;
+}
+
+.btn-warning {
+  background-color: #f39c12;
+  border-color: #f39c12;
+}
+
+.btn-warning:hover {
+  background-color: #e67e22;
+  border-color: #e67e22;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+/* 输入框和搜索栏 */
+.form-control {
+  border-radius: 5px;
+  border: 1px solid #ced4da;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+}
+
+/* 模态框样式 */
+.modal-content {
+  border-radius: 10px;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  background-color: #3498db;
+  color: #fff;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.modal-title {
+  font-weight: 500;
+}
+
+.btn-close {
+  filter: invert(1);
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.form-label {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.form-select,
+.form-control,
+textarea {
+  margin-bottom: 10px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .container {
+    padding: 15px;
+  }
+
+  .table th,
+  .table td {
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  .btn {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+
+  .form-control {
+    font-size: 14px;
+  }
+
+  .modal-dialog {
+    margin: 10px;
+  }
+
+  .card-text {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 576px) {
+  .table {
+    font-size: 12px;
+  }
+
+  .btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .form-control.d-inline-block.w-25 {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  .ms-2 {
+    margin-left: 0 !important;
+    margin-top: 5px;
+  }
+
+  .card-text {
+    font-size: 12px;
+  }
+}

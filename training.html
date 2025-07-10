@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>学时记录</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1 class="my-4">学时记录</h1>
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">学员信息</h5>
+        <p class="card-text"><strong>姓名：</strong><span id="studentName"></span></p>
+        <p class="card-text"><strong>身份证号码：</strong><span id="studentIdCard"></span></p>
+        <p class="card-text"><strong>静态学时（分钟）：</strong><span id="staticHours"></span></p>
+        <p class="card-text"><strong>动态学时（分钟）：</strong><span id="dynamicHours"></span></p>
+        <p class="card-text"><strong>总练车时长（分钟）：</strong><span id="totalTrainingHours"></span></p>
+      </div>
+    </div>
+    <a href="index.html" class="btn btn-secondary mb-3">返回学员管理</a>
+    <button class="btn btn-success mb-3" onclick="openAddTrainingModal()">添加学时记录</button>
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>练车日期</th>
+          <th>开始时间</th>
+          <th>结束时间</th>
+          <th>练习时长(分钟)</th>
+          <th>需加强项目</th>
+          <th>备注</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="trainingTable"></tbody>
+    </table>
+
+    <!-- 添加/编辑学时记录模态框 -->
+    <div class="modal fade" id="trainingModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="trainingModalTitle">添加学时记录</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="trainingForm">
+              <div class="mb-3">
+                <label class="form-label">练车日期</label>
+                <input type="date" id="trainingDate" class="form-control" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">开始时间</label>
+                <select id="startTime" class="form-select" required>
+                  <option value="" disabled selected>选择开始时间</option>
+                  <!-- 动态生成选项 -->
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">结束时间</label>
+                <select id="endTime" class="form-select" required>
+                  <option value="" disabled selected>选择结束时间</option>
+                  <!-- 动态生成选项 -->
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">需加强项目</label>
+                <div>
+                  <input type="checkbox" id="weakItem1" value="超车"> 超车
+                  <input type="checkbox" id="weakItem2" value="直线行驶"> 直线行驶
+                  <input type="checkbox" id="weakItem3" value="会车"> 会车
+                  <input type="checkbox" id="weakItem4" value="靠边停车"> 靠边停车
+                  <input type="checkbox" id="weakItem5" value="换挡"> 换挡
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">备注</label>
+                <textarea id="remarks" class="form-control" rows="3"></textarea>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="button" class="btn btn-primary" onclick="saveTraining()">保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="scripts.js"></script>
+</body>
+</html>
