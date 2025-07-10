@@ -1,27 +1,30 @@
 // 数据存储
-let students = JSON.parse(localStorage.getItem('students')) || [];
-let trainingRecords = JSON.parse(localStorage.getItem('trainingRecords')) || [];
+let students = [];
+let trainingRecords = [];
 let currentStudentId = null;
 let editStudentIndex = null;
 let editTrainingIndex = null;
 let sortField = null;
 let sortOrder = 'asc';
 
+// Worker API 基础 URL
+const API_URL = 'https://lingering-voice-5ba3.happyend0106.workers.dev';
+
 // 身份证号码校验
 function validateIdCard(idCard) {
-  if (!idCard || idCard === '待录入') return true; // 允许为空或待录入
+  if (!idCard || idCard === '待录入') return true;
   const regex = /^[1-9]\d{5}(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}(\d|X)$/;
   return regex.test(idCard);
 }
 
-// 隐藏身份证号码中间部分
+// 隐藏身份证号码
 function maskIdCard(idCard) {
   if (!idCard || idCard === '待录入') return '待录入';
   if (idCard.length !== 18) return idCard;
   return `${idCard.slice(0, 6)}******${idCard.slice(-4)}`;
 }
 
-// 生成时间选项（00:00到23:30，每30分钟）
+// 生成时间选项
 function generateTimeOptions() {
   const times = [];
   for (let hour = 0; hour < 24; hour++) {
@@ -49,13 +52,34 @@ function populateTimeSelects() {
   });
 }
 
-// 计算时长（分钟，30分钟的倍数）
+// 计算时长
 function calculateDuration(startTime, endTime) {
   const start = new Date(`1970-01-01 ${startTime}`);
   const end = new Date(`1970-01-01 ${endTime}`);
   const duration = (end - start) / 1000 / 60;
-  if (duration <= 0 || duration % 30 !== 0) return null; // 必须是30分钟的倍数
+  if (duration <= 0 || duration % 30 !== 0) return null;
   return duration;
+}
+
+// 获取数据
+async function fetchData(endpoint) {
+  const response = await fetch(`${API_URL}/${endpoint}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) throw new Error(`Failed to fetch ${endpoint}`);
+  return response.json();
+}
+
+// 保存数据
+async function saveData(endpoint, method, body) {
+  const response = await fetch(`${API_URL}/${endpoint}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(`Failed to save ${endpoint}`);
+  return response.json();
 }
 
 // 排序学员列表
@@ -96,33 +120,39 @@ function updateSortIndicators() {
 }
 
 // 渲染学员列表
-function renderStudents(filterQuery = '') {
+async function renderStudents(filterQuery = '') {
   const tbody = document.getElementById('studentTable');
   if (!tbody) return;
-  tbody.innerHTML = '';
-  students
-    .filter(s => !filterQuery || 
-      (s.idCard && s.idCard !== '待录入' && s.idCard.toLowerCase().includes(filterQuery.toLowerCase())) ||
-      s.name.toLowerCase().includes(filterQuery.toLowerCase())
-    )
-    .forEach((student, index) => {
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${student.name}</td>
-        <td>${maskIdCard(student.idCard)}</td>
-        <td>${student.subject2Pass ? '合格' : '未合格'}</td>
-        <td>${student.subject3Status}</td>
-        <td>${student.vehicleType}</td>
-        <td>${student.remarks || ''}</td>
-        <td>
-          <button class="btn btn-info btn-sm" onclick="viewTraining(${index})">查看学时</button>
-          <button class="btn btn-warning btn-sm" onclick="openEditStudentModal(${index})">编辑</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteStudent(${index})">删除</button>
-        </td>
-      `;
-      tbody.appendChild(row);
-    });
-  updateSortIndicators();
+  try {
+    students = await fetchData('students');
+    tbody.innerHTML = '';
+    students
+      .filter(s => !filterQuery || 
+        (s.idCard && s.idCard !== '待录入' && s.idCard.toLowerCase().includes(filterQuery.toLowerCase())) ||
+        s.name.toLowerCase().includes(filterQuery.toLowerCase())
+      )
+      .forEach((student, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${student.name}</td>
+          <td>${maskIdCard(student.idCard)}</td>
+          <td>${student.subject2Pass ? '合格' : '未合格'}</td>
+          <td>${student.subject3Status}</td>
+          <td>${student.vehicleType}</td>
+          <td>${student.remarks || ''}</td>
+          <td>
+            <button class="btn btn-info btn-sm" onclick="viewTraining(${index})">查看学时</button>
+            <button class="btn btn-warning btn-sm" onclick="openEditStudentModal(${index})">编辑</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteStudent(${index})">删除</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    updateSortIndicators();
+  } catch (error) {
+    console.error('渲染学员列表失败:', error);
+    alert('无法加载学员数据，请检查网络！');
+  }
 }
 
 // 搜索学员
@@ -167,7 +197,7 @@ function openEditStudentModal(index) {
 }
 
 // 保存学员
-function saveStudent() {
+async function saveStudent() {
   console.log('保存按钮点击');
   let idCard = document.getElementById('idCard').value.trim();
   const name = document.getElementById('name').value.trim();
@@ -192,70 +222,85 @@ function saveStudent() {
     return;
   }
 
-  if (editStudentIndex === null) {
-    if (idCard !== '待录入' && students.some(s => s.idCard === idCard)) {
-      alert('身份证号码已存在！');
-      return;
+  const student = { idCard, name, subject2Pass, subject3Status, vehicleType, remarks, staticHours, dynamicHours };
+  try {
+    if (editStudentIndex === null) {
+      if (idCard !== '待录入' && students.some(s => s.idCard === idCard)) {
+        alert('身份证号码已存在！');
+        return;
+      }
+      await saveData('students', 'POST', student);
+    } else {
+      if (idCard !== '待录入' && students.some((s, i) => s.idCard === idCard && i !== editStudentIndex)) {
+        alert('身份证号码已存在！');
+        return;
+      }
+      await saveData('students', 'PUT', { index: editStudentIndex, student });
     }
-    students.push({ idCard, name, subject2Pass, subject3Status, vehicleType, remarks, staticHours, dynamicHours });
-  } else {
-    if (idCard !== '待录入' && students.some((s, i) => s.idCard === idCard && i !== editStudentIndex)) {
-      alert('身份证号码已存在！');
-      return;
-    }
-    students[editStudentIndex] = { idCard, name, subject2Pass, subject3Status, vehicleType, remarks, staticHours, dynamicHours };
+    await renderStudents();
+    bootstrap.Modal.getInstance(document.getElementById('studentModal')).hide();
+  } catch (error) {
+    console.error('保存学员失败:', error);
+    alert('保存学员失败，请检查网络！');
   }
-
-  localStorage.setItem('students', JSON.stringify(students));
-  console.log('保存学员数据：', students);
-  renderStudents();
-  bootstrap.Modal.getInstance(document.getElementById('studentModal')).hide();
 }
 
 // 删除学员
-function deleteStudent(index) {
+async function deleteStudent(index) {
   console.log('删除按钮点击，索引：', index);
   if (confirm('确定删除该学员？')) {
-    students.splice(index, 1);
-    localStorage.setItem('students', JSON.stringify(students));
-    renderStudents();
+    try {
+      await saveData('students', 'DELETE', { index });
+      await renderStudents();
+    } catch (error) {
+      console.error('删除学员失败:', error);
+      alert('删除学员失败，请检查网络！');
+    }
   }
 }
 
 // 导出数据
-function exportData() {
+async function exportData() {
   console.log('导出数据按钮点击');
-  // 导出 students.csv
-  const studentHeaders = ['姓名', '身份证号码', '科目二状态', '科目三状态', '车型', '备注', '静态学时', '动态学时'];
-  const studentRows = students.map(s => [
-    `"${s.name}"`,
-    `"${s.idCard}"`,
-    `"${s.subject2Pass ? '合格' : '未合格'}"`,
-    `"${s.subject3Status}"`,
-    `"${s.vehicleType}"`,
-    `"${s.remarks || ''}"`,
-    s.staticHours,
-    s.dynamicHours
-  ]);
-  const studentCsv = '\ufeff' + [studentHeaders, ...studentRows].map(row => row.join(',')).join('\n');
-  downloadCsv(studentCsv, 'students.csv');
+  try {
+    const students = await fetchData('students');
+    const trainingRecords = await fetchData('trainingRecords');
 
-  // 导出 trainingRecords.csv
-  const trainingHeaders = ['身份证号码', '练车日期', '开始时间', '结束时间', '练习时长', '需加强项目', '备注'];
-  const trainingRows = trainingRecords.map(r => [
-    `"${r.idCard}"`,
-    `"${r.trainingDate}"`,
-    `"${r.startTime}"`,
-    `"${r.endTime}"`,
-    r.duration,
-    `"${r.weakItems.join(';')}"`,
-    `"${r.remarks}"`
-  ]);
-  const trainingCsv = '\ufeff' + [trainingHeaders, ...trainingRows].map(row => row.join(',')).join('\n');
-  downloadCsv(trainingCsv, 'trainingRecords.csv');
+    // 导出 students.csv
+    const studentHeaders = ['姓名', '身份证号码', '科目二状态', '科目三状态', '车型', '备注', '静态学时', '动态学时'];
+    const studentRows = students.map(s => [
+      `"${s.name}"`,
+      `"${s.idCard}"`,
+      `"${s.subject2Pass ? '合格' : '未合格'}"`,
+      `"${s.subject3Status}"`,
+      `"${s.vehicleType}"`,
+      `"${s.remarks || ''}"`,
+      s.staticHours,
+      s.dynamicHours
+    ]);
+    const studentCsv = '\ufeff' + [studentHeaders, ...studentRows].map(row => row.join(',')).join('\n');
+    downloadCsv(studentCsv, 'students.csv');
+
+    // 导出 trainingRecords.csv
+    const trainingHeaders = ['身份证号码', '练车日期', '开始时间', '结束时间', '练习时长', '需加强项目', '备注'];
+    const trainingRows = trainingRecords.map(r => [
+      `"${r.idCard}"`,
+      `"${r.trainingDate}"`,
+      `"${r.startTime}"`,
+      `"${r.endTime}"`,
+      r.duration,
+      `"${r.weakItems.join(';')}"`,
+      `"${r.remarks}"`
+    ]);
+    const trainingCsv = '\ufeff' + [trainingHeaders, ...trainingRows].map(row => row.join(',')).join('\n');
+    downloadCsv(trainingCsv, 'trainingRecords.csv');
+  } catch (error) {
+    console.error('导出数据失败:', error);
+    alert('导出数据失败，请检查网络！');
+  }
 }
 
-// 下载CSV文件
+// 下载 CSV 文件
 function downloadCsv(csvContent, fileName) {
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
@@ -265,83 +310,84 @@ function downloadCsv(csvContent, fileName) {
   URL.revokeObjectURL(link.href);
 }
 
-// 验证时间格式（HH:00或HH:30）
+// 验证时间格式
 function validateTimeFormat(time) {
   const times = generateTimeOptions();
   return times.includes(time);
 }
 
 // 导入数据
-document.getElementById('importFile')?.addEventListener('change', function (event) {
+document.getElementById('importFile')?.addEventListener('change', async function (event) {
   console.log('导入文件选择');
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = function (e) {
+  reader.onload = async function (e) {
     const text = e.target.result;
     const rows = text.split('\n').map(row => row.split(',').map(cell => cell.trim().replace(/^"|"$/g, '')));
     const headers = rows[0];
     const data = rows.slice(1).filter(row => row.length >= headers.length);
 
-    if (headers.join(',') === ['姓名', '身份证号码', '科目二状态', '科目三状态', '车型', '备注', '静态学时', '动态学时'].join(',')) {
-      // 导入学员数据
-      const overwrite = confirm('导入学员数据，是否覆盖现有数据？（点击“取消”将追加数据）');
-      const newStudents = data.map(row => ({
-        name: row[0],
-        idCard: row[1] || '待录入',
-        subject2Pass: row[2] === '合格',
-        subject3Status: ['练习中', '需补考', '已合格'].includes(row[3]) ? row[3] : '练习中',
-        vehicleType: ['C1', 'C2'].includes(row[4]) ? row[4] : 'C1',
-        remarks: row[5] || '',
-        staticHours: isNaN(parseInt(row[6])) ? 0 : Math.max(0, parseInt(row[6])),
-        dynamicHours: isNaN(parseInt(row[7])) ? 0 : Math.max(0, parseInt(row[7]))
-      })).filter(s => s.name && (s.idCard === '待录入' || validateIdCard(s.idCard)));
+    try {
+      if (headers.join(',') === ['姓名', '身份证号码', '科目二状态', '科目三状态', '车型', '备注', '静态学时', '动态学时'].join(',')) {
+        const overwrite = confirm('导入学员数据，是否覆盖现有数据？（点击“取消”将追加数据）');
+        const newStudents = data.map(row => ({
+          name: row[0],
+          idCard: row[1] || '待录入',
+          subject2Pass: row[2] === '合格',
+          subject3Status: ['练习中', '需补考', '已合格'].includes(row[3]) ? row[3] : '练习中',
+          vehicleType: ['C1', 'C2'].includes(row[4]) ? row[4] : 'C1',
+          remarks: row[5] || '',
+          staticHours: isNaN(parseInt(row[6])) ? 0 : Math.max(0, parseInt(row[6])),
+          dynamicHours: isNaN(parseInt(row[7])) ? 0 : Math.max(0, parseInt(row[7]))
+        })).filter(s => s.name && (s.idCard === '待录入' || validateIdCard(s.idCard)));
 
-      if (overwrite) {
-        students = newStudents.filter(s => !students.some(existing => existing.idCard === s.idCard && s.idCard !== '待录入'));
-      } else {
-        newStudents.forEach(s => {
-          if (s.idCard !== '待录入' && !students.some(existing => existing.idCard === s.idCard)) {
-            students.push(s);
-          } else if (s.idCard === '待录入') {
-            students.push(s);
+        if (overwrite) {
+          await saveData('students', 'POST', newStudents.filter(s => !students.some(existing => existing.idCard === s.idCard && s.idCard !== '待录入')));
+        } else {
+          for (const s of newStudents) {
+            if (s.idCard !== '待录入' && !students.some(existing => existing.idCard === s.idCard)) {
+              await saveData('students', 'POST', s);
+            } else if (s.idCard === '待录入') {
+              await saveData('students', 'POST', s);
+            }
           }
-        });
-      }
-      localStorage.setItem('students', JSON.stringify(students));
-      renderStudents();
-    } else if (headers.join(',') === ['身份证号码', '练车日期', '开始时间', '结束时间', '练习时长', '需加强项目', '备注'].join(',')) {
-      // 导入学时记录
-      const validWeakItems = ['超车', '直线行驶', '会车', '靠边停车', '换挡'];
-      const overwrite = confirm('导入学时记录，是否覆盖现有数据？（点击“取消”将追加数据）');
-      const newRecords = data.map(row => ({
-        idCard: row[0] || '待录入',
-        trainingDate: row[1],
-        startTime: row[2],
-        endTime: row[3],
-        duration: parseInt(row[4]),
-        weakItems: row[5] ? row[5].split(';').filter(item => validWeakItems.includes(item)) : [],
-        remarks: row[6] || ''
-      })).filter(r => 
-        r.idCard && (r.idCard === '待录入' || validateIdCard(r.idCard)) &&
-        r.trainingDate && validateTimeFormat(r.startTime) && validateTimeFormat(r.endTime) &&
-        !isNaN(r.duration) && r.duration >= 30 && r.duration % 30 === 0 &&
-        calculateDuration(r.startTime, r.endTime) === r.duration
-      );
+        }
+        await renderStudents();
+      } else if (headers.join(',') === ['身份证号码', '练车日期', '开始时间', '结束时间', '练习时长', '需加强项目', '备注'].join(',')) {
+        const validWeakItems = ['超车', '直线行驶', '会车', '靠边停车', '换挡'];
+        const overwrite = confirm('导入学时记录，是否覆盖现有数据？（点击“取消”将追加数据）');
+        const newRecords = data.map(row => ({
+          idCard: row[0] || '待录入',
+          trainingDate: row[1],
+          startTime: row[2],
+          endTime: row[3],
+          duration: parseInt(row[4]),
+          weakItems: row[5] ? row[5].split(';').filter(item => validWeakItems.includes(item)) : [],
+          remarks: row[6] || ''
+        })).filter(r => 
+          r.idCard && (r.idCard === '待录入' || validateIdCard(r.idCard)) &&
+          r.trainingDate && validateTimeFormat(r.startTime) && validateTimeFormat(r.endTime) &&
+          !isNaN(r.duration) && r.duration >= 30 && r.duration % 30 === 0 &&
+          calculateDuration(r.startTime, r.endTime) === r.duration
+        );
 
-      if (overwrite) {
-        trainingRecords = newRecords;
-      } else {
-        newRecords.forEach(r => {
-          if (!trainingRecords.some(existing => existing.idCard === r.idCard && existing.trainingDate === r.trainingDate && existing.startTime === r.startTime)) {
-            trainingRecords.push(r);
+        if (overwrite) {
+          await saveData('trainingRecords', 'POST', newRecords);
+        } else {
+          for (const r of newRecords) {
+            if (!trainingRecords.some(existing => existing.idCard === r.idCard && existing.trainingDate === r.trainingDate && existing.startTime === r.startTime)) {
+              await saveData('trainingRecords', 'POST', r);
+            }
           }
-        });
+        }
+        await renderTrainingRecords();
+      } else {
+        alert('无效的CSV文件格式！');
       }
-      localStorage.setItem('trainingRecords', JSON.stringify(trainingRecords));
-      renderTrainingRecords();
-    } else {
-      alert('无效的CSV文件格式！');
+    } catch (error) {
+      console.error('导入数据失败:', error);
+      alert('导入数据失败，请检查网络或文件格式！');
     }
   };
   reader.readAsText(file, 'UTF-8');
@@ -355,11 +401,10 @@ function viewTraining(index) {
 }
 
 // 渲染学时记录
-function renderTrainingRecords() {
+async function renderTrainingRecords() {
   const tbody = document.getElementById('trainingTable');
   if (!tbody) return;
 
-  // 显示学员信息
   const urlParams = new URLSearchParams(window.location.search);
   const idCard = urlParams.get('idCard');
   if (!idCard) {
@@ -367,43 +412,48 @@ function renderTrainingRecords() {
     window.location.href = 'index.html';
     return;
   }
-  const student = students.find(s => s.idCard === idCard);
-  if (student) {
-    document.getElementById('studentName').textContent = student.name || '未知';
-    document.getElementById('studentIdCard').textContent = student.idCard || '待录入';
-    document.getElementById('staticHours').textContent = student.staticHours || 0;
-    document.getElementById('dynamicHours').textContent = student.dynamicHours || 0;
-    // 计算总练车时长
-    const totalTrainingHours = trainingRecords
-      .filter(r => r.idCard === idCard)
-      .reduce((sum, r) => sum + r.duration, 0);
-    document.getElementById('totalTrainingHours').textContent = totalTrainingHours;
-  } else {
-    alert('学员不存在！');
-    window.location.href = 'index.html';
-    return;
-  }
+  try {
+    students = await fetchData('students');
+    trainingRecords = await fetchData('trainingRecords');
+    const student = students.find(s => s.idCard === idCard);
+    if (student) {
+      document.getElementById('studentName').textContent = student.name || '未知';
+      document.getElementById('studentIdCard').textContent = student.idCard || '待录入';
+      document.getElementById('staticHours').textContent = student.staticHours || 0;
+      document.getElementById('dynamicHours').textContent = student.dynamicHours || 0;
+      const totalTrainingHours = trainingRecords
+        .filter(r => r.idCard === idCard)
+        .reduce((sum, r) => sum + r.duration, 0);
+      document.getElementById('totalTrainingHours').textContent = totalTrainingHours;
+    } else {
+      alert('学员不存在！');
+      window.location.href = 'index.html';
+      return;
+    }
 
-  // 渲染学时记录表格
-  tbody.innerHTML = '';
-  trainingRecords
-    .filter(r => r.idCard === idCard)
-    .forEach((record, index) => {
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${record.trainingDate}</td>
-        <td>${record.startTime}</td>
-        <td>${record.endTime}</td>
-        <td>${record.duration}</td>
-        <td>${record.weakItems.join(', ')}</td>
-        <td>${record.remarks}</td>
-        <td>
-          <button class="btn btn-warning btn-sm" onclick="openEditTrainingModal(${index})">编辑</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteTraining(${index})">删除</button>
-        </td>
-      `;
-      tbody.appendChild(row);
-    });
+    tbody.innerHTML = '';
+    trainingRecords
+      .filter(r => r.idCard === idCard)
+      .forEach((record, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${record.trainingDate}</td>
+          <td>${record.startTime}</td>
+          <td>${record.endTime}</td>
+          <td>${record.duration}</td>
+          <td>${record.weakItems.join(', ')}</td>
+          <td>${record.remarks}</td>
+          <td>
+            <button class="btn btn-warning btn-sm" onclick="openEditTrainingModal(${index})">编辑</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteTraining(${index})">删除</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+  } catch (error) {
+    console.error('渲染学时记录失败:', error);
+    alert('无法加载学时记录，请检查网络！');
+  }
 }
 
 // 打开添加学时记录模态框
@@ -445,7 +495,7 @@ function openEditTrainingModal(index) {
 }
 
 // 保存学时记录
-function saveTraining() {
+async function saveTraining() {
   console.log('保存学时记录按钮点击');
   const urlParams = new URLSearchParams(window.location.search);
   const idCard = urlParams.get('idCard');
@@ -482,31 +532,42 @@ function saveTraining() {
     remarks,
   };
 
-  if (editTrainingIndex === null) {
-    trainingRecords.push(record);
-  } else {
-    trainingRecords[editTrainingIndex] = record;
+  try {
+    if (editTrainingIndex === null) {
+      await saveData('trainingRecords', 'POST', record);
+    } else {
+      await saveData('trainingRecords', 'PUT', { index: editTrainingIndex, record });
+    }
+    await renderTrainingRecords();
+    bootstrap.Modal.getInstance(document.getElementById('trainingModal')).hide();
+  } catch (error) {
+    console.error('保存学时记录失败:', error);
+    alert('保存学时记录失败，请检查网络！');
   }
-
-  localStorage.setItem('trainingRecords', JSON.stringify(trainingRecords));
-  console.log('保存学时记录：', trainingRecords);
-  renderTrainingRecords();
-  bootstrap.Modal.getInstance(document.getElementById('trainingModal')).hide();
 }
 
 // 删除学时记录
-function deleteTraining(index) {
+async function deleteTraining(index) {
   console.log('删除学时记录按钮点击，索引：', index);
   if (confirm('确定删除该学时记录？')) {
-    trainingRecords.splice(index, 1);
-    localStorage.setItem('trainingRecords', JSON.stringify(trainingRecords));
-    renderTrainingRecords();
+    try {
+      await saveData('trainingRecords', 'DELETE', { index });
+      await renderTrainingRecords();
+    } catch (error) {
+      console.error('删除学时记录失败:', error);
+      alert('删除学时记录失败，请检查网络！');
+    }
   }
 }
 
 // 页面加载时初始化
-window.onload = function () {
+window.onload = async function () {
   console.log('页面加载完成，初始化渲染');
-  renderStudents();
-  renderTrainingRecords();
+  try {
+    await renderStudents();
+    await renderTrainingRecords();
+  } catch (error) {
+    console.error('初始化失败:', error);
+    alert('页面初始化失败，请检查网络！');
+  }
 };
