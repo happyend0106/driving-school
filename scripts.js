@@ -8,7 +8,7 @@ let sortField = null;
 let sortOrder = 'asc';
 
 // Worker API 基础 URL
-const API_URL = 'https://lingering-voice-5ba3.happyend0106.workers.dev';
+const API_URL = 'https://wdkm3.20121020.xyz';
 
 // 身份证号码校验
 function validateIdCard(idCard) {
